@@ -333,6 +333,8 @@ set linebreak
 set showbreak=>\ \ \
 autocmd BufWritePre * %s/\s\+$//e
 
+" Auto indent "
+map <F7> gg=G<C-o><C-o>
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Helper functions
