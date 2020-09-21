@@ -29,9 +29,9 @@ endfunction
 
 function! s:send(self,func,...)
   if type(a:func) == type('') || type(a:func) == type(0)
-    let Func = get(a:self,a:func,'')
+    let l:Func = get(a:self,a:func,'')
   else
-    let Func = a:func
+    let l:Func = a:func
   endif
   let s = type(a:self) == type({}) ? a:self : {}
   if type(Func) == type(function('tr'))
@@ -215,7 +215,6 @@ function! s:SubComplete(A,L,P)
 endfunction
 
 function! s:Complete(A,L,P)
-  let g:L = a:L
   " Vim bug: :Abolish -<Tab> calls this function with a:A equal to 0
   if a:A =~# '^[^/?-]' && type(a:A) != type(0)
     return join(s:words(),"\n")
@@ -314,7 +313,6 @@ function! s:normalize_options(flags)
     let opts = {}
     let flags = a:flags
   endif
-  let g:op1 = copy(opts)
   if flags =~# 'w'
     let opts.boundaries = 2
   elseif flags =~# 'v'
@@ -324,7 +322,6 @@ function! s:normalize_options(flags)
   endif
   let opts.case = (flags !~# 'I' ? get(opts,'case',1) : 0)
   let opts.flags = substitute(flags,'\C[avIiw]','','g')
-  let g:op2 = copy(opts)
   return opts
 endfunction
 
@@ -527,7 +524,7 @@ function! s:commands.abbrev.process(bang,line1,line2,count,args)
     let cmd = cmd . " <buffer>"
   endif
   let [bad, good] = s:badgood(a:args)
-  if substitute(bad,'{.\{-\}.}','','g') !~ '^\k\+$'
+  if substitute(bad, '[{},]', '', 'g') !~# '^\k*$'
     call s:throw("E474: Invalid argument (not a keyword: ".string(bad).")")
   endif
   if !self.options.delete && good == ""
@@ -578,45 +575,56 @@ call extend(Abolish.Coercions, {
       \ "function missing": s:function("s:unknown_coercion")
       \}, "keep")
 
-function! s:coerce(transformation)
+function! s:coerce(type) abort
+  if a:type !~# '^\%(line\|char\|block\)'
+    let s:transformation = a:type
+    let &opfunc = matchstr(expand('<sfile>'), '<SNR>\w*')
+    return 'g@'
+  endif
+  let selection = &selection
   let clipboard = &clipboard
   try
-    set clipboard=
+    set selection=inclusive clipboard-=unnamed clipboard-=unnamedplus
     let regbody = getreg('"')
     let regtype = getregtype('"')
     let c = v:count1
     while c > 0
       let c -= 1
-      norm! yiw
+      if a:type ==# 'line'
+        let move = "'[V']"
+      elseif a:type ==# 'block'
+        let move = "`[\<C-V>`]"
+      else
+        let move = "`[v`]"
+      endif
+      silent exe 'normal!' move.'y'
       let word = @@
-      let @@ = s:send(g:Abolish.Coercions,a:transformation,word)
+      let @@ = s:send(g:Abolish.Coercions,s:transformation,word)
       if !exists('begin')
         let begin = getpos("'[")
       endif
       if word !=# @@
         let changed = 1
-        norm! viwpw
-      else
-        norm! w
+        exe 'normal!' move.'p'
       endif
     endwhile
     call setreg('"',regbody,regtype)
     call setpos("'[",begin)
     call setpos(".",begin)
-    if exists("changed")
-      silent! call repeat#set("\<Plug>Coerce".a:transformation)
-    endif
   finally
+    let &selection = selection
     let &clipboard = clipboard
   endtry
 endfunction
 
-nnoremap <silent> <Plug>Coerce :<C-U>call <SID>coerce(nr2char(getchar()))<CR>
+nnoremap <expr> <Plug>(abolish-coerce) <SID>coerce(nr2char(getchar()))
+nnoremap <expr> <Plug>(abolish-coerce) <SID>coerce(nr2char(getchar()))
+nnoremap <expr> <plug>(abolish-coerce-word) <SID>coerce(nr2char(getchar())).'iw'
 
 " }}}1
 
 if !exists("g:abolish_no_mappings") || ! g:abolish_no_mappings
-  nmap cr  <Plug>Coerce
+  nmap cr  <Plug>(abolish-coerce-word)
 endif
 
 command! -nargs=+ -bang -bar -range=0 -complete=custom,s:Complete Abolish

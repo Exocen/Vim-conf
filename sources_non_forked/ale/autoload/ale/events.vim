@@ -29,7 +29,7 @@ function! ale#events#SaveEvent(buffer) abort
         call setbufvar(a:buffer, 'ale_save_event_fired', 1)
     endif
 
-    if ale#Var(a:buffer, 'fix_on_save')
+    if ale#Var(a:buffer, 'fix_on_save') && !ale#events#QuitRecently(a:buffer)
         let l:will_fix = ale#fix#Fix(a:buffer, 'save_file')
         let l:should_lint = l:should_lint && !l:will_fix
     endif
@@ -105,11 +105,11 @@ function! ale#events#Init() abort
 
         if g:ale_enabled
             if l:text_changed is? 'always' || l:text_changed is# '1'
-                autocmd TextChanged,TextChangedI * call ale#Queue(g:ale_lint_delay)
+                autocmd TextChanged,TextChangedI * call ale#Queue(ale#Var(str2nr(expand('<abuf>')), 'lint_delay'))
             elseif l:text_changed is? 'normal'
-                autocmd TextChanged * call ale#Queue(g:ale_lint_delay)
+                autocmd TextChanged * call ale#Queue(ale#Var(str2nr(expand('<abuf>')), 'lint_delay'))
             elseif l:text_changed is? 'insert'
-                autocmd TextChangedI * call ale#Queue(g:ale_lint_delay)
+                autocmd TextChangedI * call ale#Queue(ale#Var(str2nr(expand('<abuf>')), 'lint_delay'))
             endif
 
             if g:ale_lint_on_enter
@@ -128,7 +128,7 @@ function! ale#events#Init() abort
             endif
 
             if g:ale_lint_on_insert_leave
-                autocmd InsertLeave * call ale#Queue(0)
+                autocmd InsertLeave * if ale#Var(str2nr(expand('<abuf>')), 'lint_on_insert_leave') | call ale#Queue(0) | endif
             endif
 
             if g:ale_echo_cursor || g:ale_cursor_detail
@@ -137,6 +137,18 @@ function! ale#events#Init() abort
                 " The script's position variable used when moving the cursor will
                 " not be changed here.
                 autocmd InsertLeave * if exists('*ale#engine#Cleanup') | call ale#cursor#EchoCursorWarning() | endif
+            endif
+
+            if g:ale_virtualtext_cursor
+                autocmd CursorMoved,CursorHold * if exists('*ale#engine#Cleanup') | call ale#virtualtext#ShowCursorWarningWithDelay() | endif
+                " Look for a warning to echo as soon as we leave Insert mode.
+                " The script's position variable used when moving the cursor will
+                " not be changed here.
+                autocmd InsertLeave * if exists('*ale#engine#Cleanup') | call ale#virtualtext#ShowCursorWarning() | endif
+            endif
+
+            if g:ale_hover_cursor
+                autocmd CursorHold * if exists('*ale#lsp#Send') | call ale#hover#ShowTruncatedMessageAtCursor() | endif
             endif
 
             if g:ale_close_preview_on_insert
