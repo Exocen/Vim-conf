@@ -159,6 +159,8 @@ set encoding=utf8
 " Use Unix as the standard file type
 set ffs=unix,dos,mac
 
+let g:SimpylFold_docstring_preview = 1
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Files, backups and undo
@@ -338,6 +340,13 @@ map <leader>i gg=G<C-o><C-o>
 
 " GoTo need youcompleteme plugin
 nnoremap <leader>m :YcmCompleter GoTo<CR>
+nnoremap <leader>M :YcmCompleter GoToReferences<CR>
+
+" Fold disabled
+set nofoldenable
+
+let g:ycm_autoclose_preview_window_after_insertion = 1
+let g:ycm_autoclose_preview_window_after_completion = 1
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Helper functions
