@@ -21,7 +21,7 @@ set -o nounset                              # Treat unset variables as an error
 
 LOCAL=`dirname "$(readlink -f "$0")"`
 cd "$LOCAL"
-python ~/.vim_runtime/update_plugins.py
+python3 ~/.vim_runtime/update_plugins.py
 git remote add upstream https://github.com/amix/vimrc.git
 git fetch upstream
 cd -
